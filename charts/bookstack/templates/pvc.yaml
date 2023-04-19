@@ -1,0 +1,20 @@
+{{- if .Values.config.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "bookstack.fullname" . }}-data
+spec:
+  accessModes:
+    - {{ .Values.config.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.config.persistence.size | quote }}
+{{- if .Values.config.persistence.storageClass }}
+{{- if (eq "-" .Values.config.persistence.storageClass) }}
+  storageClassName: ""
+{{- else }}
+  storageClassName: "{{ .Values.config.persistence.storageClass }}"
+{{- end }}
+{{- end }}
+{{- end }}

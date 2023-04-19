@@ -1,0 +1,18 @@
+config:
+  appURL: "bookstack.fsociety.social"
+
+ingress:
+  enabled: true
+  className: "nginx-internal"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+    kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: bookstack.fsociety.social
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: tls-bookstack-general
+      hosts:
+        - bookstack.fsociety.social

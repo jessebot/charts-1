@@ -1,0 +1,94 @@
+{{- $fullName := include "bookstack.fullname" . -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "bookstack.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    type: {{ .Values.config.strategy }}
+  selector:
+    matchLabels:
+      {{- include "bookstack.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "bookstack.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "bookstack.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          env:
+            - name: PUID
+              value: {{ .Values.podSecurityContext.runAsUser |quote }}
+            - name: PGID
+              value: {{ .Values.podSecurityContext.runAsUser |quote }}
+            - name: APP_URL
+              value: {{ .Values.config.appURL }}
+            - name: DB_HOST
+              value: {{ include "bookstack.mariadb.host" . }}
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_DATABASE
+              value: {{ .Values.mariadb.auth.database }}
+            - name: DB_USER
+              value: {{ .Values.mariadb.auth.username }}
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: mariadb-password
+                  name: mariadb-secret
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.config.persistence.enabled }}
+          volumeMounts:
+            - mountPath: /config
+              name: {{ $fullName }}-data
+      volumes:
+        - name: bookstack-data
+          persistentVolumeClaim:
+            claimName: {{ $fullName }}-data
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
